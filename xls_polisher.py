@@ -1,8 +1,8 @@
-#Copyright (c) 2014 Giulio De Pasquale
+# Copyright (c) 2014 Giulio De Pasquale
 #
-#Permission is hereby granted, free of charge, to any person obtaining a copy
-#of this software and associated documentation files (the "Software"), to deal
-#in the Software without restriction, including without limitation the rights
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
 #to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 #copies of the Software, and to permit persons to whom the Software is
 #furnished to do so, subject to the following conditions:
@@ -26,9 +26,12 @@ from collections import defaultdict
 
 import xlrd
 from xlwt import Workbook
+
+
 def printBanner():
     ver = "1.0.1"
     print "Thanks for using XLS Polisher " + str(ver) + "\n\n"
+
 
 def printChoicesMenu():
     allowed_choices = [1, 2, 3, 4, 5, 8, 9]
@@ -41,16 +44,19 @@ def printChoicesMenu():
     print "9) EXIT"
     return allowed_choices
 
+
 def getColIdxFromName(name):
     colNamesDict = getColTitles()
     for key, value in colNamesDict.iteritems():
         if name == value:
             return key
 
+
 def printColTitles():
     for col in getColTitles().values():
         if col not in col_names_to_delete:
             print col
+
 
 def getColTitles():
     """
@@ -61,6 +67,7 @@ def getColTitles():
         colNamesDict[i] = sheet.cell_value(0, i)
     return colNamesDict
 
+
 def printDelPendingColumns():
     if len(col_names_to_delete) > 0:
         print "There is(are) " + str(len(col_names_to_delete)) + " column(s) pending deletion, which is(are):"
@@ -69,15 +76,34 @@ def printDelPendingColumns():
     else:
         print "There are no columns pending deletion."
 
+
 def printFilters():
-    if len(col_filter_strict) or len(col_filter_loose) > 0:
+    if len(col_filter_strict) or len(col_filter_loose) or len(col_filter_delete_strict) or len(
+            col_filter_delete_loose) > 0:
         print "There are these ACTIVE filters:"
-        for col in col_filter_loose:
-            print col
-        for col in col_filter_strict:
-            print col
+        if len(col_filter_loose) > 0:
+            print "SHOW ROWS CONTAINING:"
+            for key, value in col_filter_loose.iteritems():
+                for content in value:
+                    print "COL: " + str(key) + " - FILTER: " + str(content)
+        if len(col_filter_strict) > 0:
+            print "SHOW ROWS STRICTLY CONTAINING:"
+            for key, value in col_filter_strict.iteritems():
+                for content in value:
+                    print "COL: " + str(key) + " - FILTER: " + str(content)
+        if len(col_filter_delete_loose) > 0:
+            print "DELETE ROWS CONTAINING:"
+            for key, value in col_filter_delete_loose.iteritems():
+                for content in value:
+                    print "COL: " + str(key) + " - FILTER: " + str(content)
+        if len(col_filter_delete_strict) > 0:
+            print "DELETE ROWS STRICTLY CONTAINING:"
+            for key, value in col_filter_delete_strict.iteritems():
+                for content in value:
+                    print "COL: " + str(key) + " - FILTER: " + str(content)
     else:
         print "There are NO ACTIVE filters."
+
 
 def listElements():
     mne = []
@@ -88,13 +114,14 @@ def listElements():
     print "Would you like to print every element? [Y/N]"
     choice = getCharInput(["y", "n"])
     for row in range(1, sheet.nrows):
-            val = sheet.cell_value(row, col)
-            if val not in mne:
-                mne.append(val)
+        val = sheet.cell_value(row, col)
+        if val not in mne:
+            mne.append(val)
     if choice == "y":
         for val in mne:
             print val
     print "Number of elements: " + str(len(mne))
+
 
 def removeColumn():
     print "Which column would you like to DELETE? [MULTIPLE ENTRIES DELIMITED BY \" | \""
@@ -155,36 +182,37 @@ def populateColNumsToDelete(colNamesDict):
         if value in col_names_to_delete:
             col_nums_to_delete.append(key)
 
+
 def populateRowNumsToDelete():
     # checking user selected rows
     if len(col_filter_delete_strict) > 0:
-            for row in range(0, sheet.nrows):
-                for col in range(0, sheet.ncols):
-                    if col in col_filter_delete_strict and sheet.cell_value(row, col) in col_filter_delete_strict[col]:
-                        row_nums_to_delete.append(row)
+        for row in range(0, sheet.nrows):
+            for col in range(0, sheet.ncols):
+                if col in col_filter_delete_strict and sheet.cell_value(row, col) in col_filter_delete_strict[col]:
+                    row_nums_to_delete.append(row)
 
     # checking strict filter
     if len(col_filter_strict) > 0:
         for row in range(1, sheet.nrows):
-                for col in range(0, sheet.ncols):
-                        if col in col_filter_strict and not sheet.cell_value(row, col) in col_filter_strict[col]:
-                            row_nums_to_delete.append(row)
+            for col in range(0, sheet.ncols):
+                if col in col_filter_strict and not sheet.cell_value(row, col) in col_filter_strict[col]:
+                    row_nums_to_delete.append(row)
 
     if len(col_filter_loose) > 0:
         for row in range(1, sheet.nrows):
             for col in range(0, sheet.ncols):
-                    if col in col_filter_loose:
-                        for name in col_filter_loose[col]:
-                            if name not in sheet.cell_value(row,col):
-                                row_nums_to_delete.append(row)
+                if col in col_filter_loose:
+                    for name in col_filter_loose[col]:
+                        if name not in sheet.cell_value(row, col):
+                            row_nums_to_delete.append(row)
 
     if len(col_filter_delete_loose) > 0:
         for row in range(1, sheet.nrows):
             for col in range(0, sheet.ncols):
-                    if col in col_filter_delete_loose:
-                        for name in col_filter_delete_loose[col]:
-                            if name in sheet.cell_value(row,col):
-                                row_nums_to_delete.append(row)
+                if col in col_filter_delete_loose:
+                    for name in col_filter_delete_loose[col]:
+                        if name in sheet.cell_value(row, col):
+                            row_nums_to_delete.append(row)
 
 
 def writeFile(pf_sheet):
@@ -207,6 +235,7 @@ def writeFile(pf_sheet):
             col_write += 1
             col_wrote = False
         row_write = 0
+
 
 def mainLoop():
     print "What would you like to do? "
@@ -231,7 +260,7 @@ def mainLoop():
             # Creates sheet with original name
             pf_sheet = polished_file.add_sheet(sheet.name)
             writeFile(pf_sheet)
-            polished_file.save(filename+".xls")
+            polished_file.save(filename + ".xls")
             polished_file.save(TemporaryFile())
             return
         printChoicesMenu()
