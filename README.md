@@ -4,5 +4,6 @@ XLS-Polisher
 A quick XLS file parser/filter.
 
 DEPENDENCIES:
--- xlwt
--- xlrd
+- xlwt
+- xlrd
+- PyQt4

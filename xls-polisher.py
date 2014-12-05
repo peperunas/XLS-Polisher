@@ -29,7 +29,7 @@ from PyQt4 import QtGui, uic, QtCore
 
 import xlrd
 from xlwt import Workbook
-import resources_rc
+
 
 main_window_ui = uic.loadUiType("./ui/qt-main.ui")[0]
 dialog_window_ui = uic.loadUiType("./ui/qt-about.ui")[0]
@@ -58,11 +58,13 @@ class FilterDetails():
         self.show = show
         self.string = unicode(string)
 
+
 class CellDetail():
     def __init__(self, colname, colidx=None, rowidx=None):
         self.colname = colname
         self.idx = rowidx
         self.colidx = colidx
+
 
 class TabWidget(QtGui.QWidget, tab_widget_ui):
     def __init__(self, control, parent=None):
@@ -72,7 +74,7 @@ class TabWidget(QtGui.QWidget, tab_widget_ui):
 
         # HANDLING THE TREEVIEW WIDGET
 
-        self.filterTree.setColumnWidth(0, 234) # COLUMN
+        self.filterTree.setColumnWidth(0, 234)  # COLUMN
         # HANDLING THE CONTEXT MENUS
         self.filterTree.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.columnList.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
@@ -94,7 +96,6 @@ class TabWidget(QtGui.QWidget, tab_widget_ui):
         self.control.filename.close()
 
     def removecolumnrow(self):
-
         return
 
     def removefilterrow(self):
@@ -298,8 +299,9 @@ class ControlClass():
         if len(self.col_filter_show_strict) > 0:
             for row in range(1, self.sheet.nrows):
                 for col in range(0, self.sheet.ncols):
-                    if col in self.col_filter_show_strict and not self.parseandgetcellvalue(row, col) in self.col_filter_show_strict[
-                        col]:
+                    if col in self.col_filter_show_strict and not self.parseandgetcellvalue(row, col) in \
+                            self.col_filter_show_strict[
+                                col]:
                         self.row_nums_to_delete.append(row)
 
         if len(self.col_filter_show_loose) > 0:
@@ -348,10 +350,10 @@ class ControlClass():
         cell = self.sheet.cell(row, col)
         cell_value = cell.value
         # checks whether an value may be a int value and converts it (e.g 2.0 -> 2)
-        if cell.ctype in (2,3) and int(cell_value) == cell_value:
+        if cell.ctype in (2, 3) and int(cell_value) == cell_value:
             cell_value = int(cell_value)
         return unicode(cell_value)
-    
+
 ####
 # MAIN
 ####
