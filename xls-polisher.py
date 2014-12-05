@@ -29,7 +29,7 @@ from PyQt4 import QtGui, uic, QtCore
 
 import xlrd
 from xlwt import Workbook
-
+import resources_rc
 
 main_window_ui = uic.loadUiType("./ui/qt-main.ui")[0]
 dialog_window_ui = uic.loadUiType("./ui/qt-about.ui")[0]
