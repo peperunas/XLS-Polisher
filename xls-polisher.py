@@ -288,34 +288,31 @@ class ControlClass():
     def populaterownumstodelete(self):
         if self.col_filter_delete_strict:
             for row in range(1, self.sheet.nrows):
-                for col in range(self.sheet.ncols):
-                    if col in self.col_filter_delete_strict and self.parseandgetcellvalue(row, col) in \
-                            self.col_filter_delete_strict[col]:
-                        self.row_nums_to_delete.append(row)
+                for col in (cols for cols in range(self.sheet.ncols) if
+                            cols in self.col_filter_delete_strict and self.parseandgetcellvalue(row, cols) in
+                                    self.col_filter_delete_strict[cols]):
+                    self.row_nums_to_delete.append(row)
 
         if self.col_filter_show_strict:
             for row in range(1, self.sheet.nrows):
-                for col in range(self.sheet.ncols):
-                    if col in self.col_filter_show_strict and not self.parseandgetcellvalue(row, col) in \
-                            self.col_filter_show_strict[
-                                col]:
-                        self.row_nums_to_delete.append(row)
+                for col in (cols for cols in range(self.sheet.ncols) if
+                            cols in self.col_filter_show_strict and not self.parseandgetcellvalue(row, cols) in
+                                    self.col_filter_show_strict[cols]):
+                    self.row_nums_to_delete.append(row)
 
         if self.col_filter_show_loose:
             for row in range(1, self.sheet.nrows):
-                for col in range(self.sheet.ncols):
-                    if col in self.col_filter_show_loose:
-                        for name in self.col_filter_show_loose[col]:
-                            if name not in self.parseandgetcellvalue(row, col):
-                                self.row_nums_to_delete.append(row)
+                for col in (cols for cols in range(self.sheet.ncols) if cols in self.col_filter_show_loose):
+                    for string in (strings for strings in self.col_filter_show_loose[col] if
+                                   strings not in self.parseandgetcellvalue(row, col)):
+                        self.row_nums_to_delete.append(row)
 
         if self.col_filter_delete_loose:
             for row in range(1, self.sheet.nrows):
-                for col in range(self.sheet.ncols):
-                    if col in self.col_filter_delete_loose:
-                        for name in self.col_filter_delete_loose[col]:
-                            if name in self.parseandgetcellvalue(row, col):
-                                self.row_nums_to_delete.append(row)
+                for col in (cols for cols in range(self.sheet.ncols) if cols in self.col_filter_delete_loose):
+                    for string in (strings for strings in self.col_filter_delete_loose[col] if
+                                   strings in self.parseandgetcellvalue(row, col)):
+                        self.row_nums_to_delete.append(row)
 
 
     def writeFile(self, dstfilename):
@@ -324,7 +321,6 @@ class ControlClass():
         col_write = 0
         col_wrote = False
         row_write = 0
-        print self.row_nums_to_delete
         for col in range(0, self.sheet.ncols):
             for row in range(0, self.sheet.nrows):
                 if col not in self.col_indexes_to_delete and row not in self.row_nums_to_delete:
