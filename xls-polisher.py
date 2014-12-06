@@ -321,13 +321,12 @@ class ControlClass():
         col_write = 0
         col_wrote = False
         row_write = 0
-        for col in range(0, self.sheet.ncols):
-            for row in range(0, self.sheet.nrows):
-                if col not in self.col_indexes_to_delete and row not in self.row_nums_to_delete:
-                    if not col_wrote:
-                        col_wrote = True
-                    self.pf_sheet.write(row_write, col_write, self.parseandgetcellvalue(row, col))
-                    row_write += 1
+        for col in (cols for cols in range(self.sheet.ncols) if cols not in self.col_indexes_to_delete):
+            for row in (rows for rows in range(self.sheet.nrows) if rows not in self.row_nums_to_delete):
+                if not col_wrote:
+                    col_wrote = True
+                self.pf_sheet.write(row_write, col_write, self.parseandgetcellvalue(row, col))
+                row_write += 1
 
             if col_write >= (self.sheet.ncols - len(self.col_indexes_to_delete)):
                 col_write = 0
