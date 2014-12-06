@@ -36,7 +36,6 @@ dialog_window_ui = uic.loadUiType("./ui/qt-about.ui")[0]
 filter_window_ui = uic.loadUiType("./ui/qt-filter.ui")[0]
 remove_column_dialog_ui = uic.loadUiType("./ui/qt-remove-column.ui")[0]
 tab_widget_ui = uic.loadUiType("./ui/qt-tabwidget.ui")[0]
-cross_icon_path = "./ui/resources/icons/cross18.png"
 
 
 def filenamefromopenfiledialog(parent=None):
@@ -287,34 +286,32 @@ class ControlClass():
         return
 
     def populaterownumstodelete(self):
-        # checking user selected rows
-        if len(self.col_filter_delete_strict) > 0:
+        if self.col_filter_delete_strict:
             for row in range(1, self.sheet.nrows):
-                for col in range(0, self.sheet.ncols):
+                for col in range(self.sheet.ncols):
                     if col in self.col_filter_delete_strict and self.parseandgetcellvalue(row, col) in \
                             self.col_filter_delete_strict[col]:
                         self.row_nums_to_delete.append(row)
 
-        # checking strict filter
-        if len(self.col_filter_show_strict) > 0:
+        if self.col_filter_show_strict:
             for row in range(1, self.sheet.nrows):
-                for col in range(0, self.sheet.ncols):
+                for col in range(self.sheet.ncols):
                     if col in self.col_filter_show_strict and not self.parseandgetcellvalue(row, col) in \
                             self.col_filter_show_strict[
                                 col]:
                         self.row_nums_to_delete.append(row)
 
-        if len(self.col_filter_show_loose) > 0:
+        if self.col_filter_show_loose:
             for row in range(1, self.sheet.nrows):
-                for col in range(0, self.sheet.ncols):
+                for col in range(self.sheet.ncols):
                     if col in self.col_filter_show_loose:
                         for name in self.col_filter_show_loose[col]:
                             if name not in self.parseandgetcellvalue(row, col):
                                 self.row_nums_to_delete.append(row)
 
-        if len(self.col_filter_delete_loose) > 0:
+        if self.col_filter_delete_loose:
             for row in range(1, self.sheet.nrows):
-                for col in range(0, self.sheet.ncols):
+                for col in range(self.sheet.ncols):
                     if col in self.col_filter_delete_loose:
                         for name in self.col_filter_delete_loose[col]:
                             if name in self.parseandgetcellvalue(row, col):
