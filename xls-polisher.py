@@ -28,8 +28,8 @@ from tempfile import TemporaryFile
 from collections import defaultdict
 from PyQt4 import QtGui, uic, QtCore
 from xlwt import Workbook
-from xml.etree import cElementTree as ET
-
+from xml.etree import cElementTree as ETWrite
+from defusedxml import cElementTree as ETRead
 
 main_window_ui = uic.loadUiType("./ui/qt-main.ui")[0]
 dialog_window_ui = uic.loadUiType("./ui/qt-about.ui")[0]
@@ -38,13 +38,13 @@ remove_column_dialog_ui = uic.loadUiType("./ui/qt-remove-column.ui")[0]
 tab_widget_ui = uic.loadUiType("./ui/qt-tabwidget.ui")[0]
 
 
-def filenamefromopenfiledialog(parent=None):
+def filename_from_openfile_dialog(parent=None):
     return QtGui.QFileDialog.getOpenFileName(parent, "XLS Polisher - Open Excel File",
                                              "/home",
                                              "Excel Files (*.xls *.xlsx)")
 
 
-def filenamefromsavefiledialog(parent=None):
+def filename_from_savefile_dialog(parent=None):
     return QtGui.QFileDialog.getSaveFileName(parent, "XLS Polisher - Save Polished File",
                                              "/home",
                                              "Excel Files (*.xls *.xlsx)")
@@ -56,11 +56,18 @@ def xml_filename_from_savefile_dialog(parent=None):
                                              "/home",
                                              "XML Files (*.xml)")
 
+def xml_filename_from_openfile_dialog(parent=None):
+    filedialog = QtGui.QFileDialog()
+    return filedialog.getOpenFileName(parent, "XLS Polisher - Open Configuration File",
+                                             "/home",
+                                             "XML Files (*.xml)")
+
+
 class FilterDetails():
-    def __init__(self, colname, strict, show, string):
+    def __init__(self, colname, strict_bool, show_bool, string):
         self.colName = colname
-        self.strict = strict
-        self.show = show
+        self.strict = strict_bool
+        self.show = show_bool
         self.string = unicode(string)
 
 
@@ -152,7 +159,7 @@ class MainWindow(QtGui.QMainWindow, main_window_ui):
         self.tabList.tabCloseRequested.connect(self.on_tab_close_requested)
 
     def on_actionopenfile_activated(self):
-        new_file = filenamefromopenfiledialog(self)
+        new_file = filename_from_openfile_dialog(self)
         self.tabList.addTab(TabWidget(ControlClass(new_file)), new_file.split("/")[-1])
         return
 
@@ -176,7 +183,7 @@ class MainWindow(QtGui.QMainWindow, main_window_ui):
         about_dialog.show()
 
     def writebutton_clicked(self):
-        file_to_save = filenamefromsavefiledialog(self)
+        file_to_save = filename_from_savefile_dialog(self)
         if len(file_to_save) > 0:
             self.tabList.currentWidget().control.writeFile(file_to_save)
 
@@ -190,6 +197,9 @@ class MainWindow(QtGui.QMainWindow, main_window_ui):
         return
 
     def on_open_configuration_activated(self):
+        filename = xml_filename_from_openfile_dialog()
+        if len(filename) > 0:
+            self.tabList.currentWidget().control.loadConfFile(filename, self.tabList.currentWidget())
         return
 
 
@@ -361,39 +371,81 @@ class ControlClass():
 
     def createConfFile(self, tabListWidget):
         root_name = "data"
-        xml_root = ET.Element(root_name)
+        xml_root = ETWrite.Element(root_name)
         filter_name = "filter"
         # ADDING FILTER ELEMENTS
         # GETS THE FIRST ITEM
-        xml_filter = ET.SubElement(xml_root, filter_name)
+        xml_filter = ETWrite.SubElement(xml_root, filter_name)
         filteritem = tabListWidget.filterTree.topLevelItem(0)
         while filteritem is not None:
-            xml_filter_item = ET.SubElement(xml_filter, "filter_item")
+            xml_filter_item = ETWrite.SubElement(xml_filter, "filter_item")
 
-            xml_filter_item_detail_column = ET.SubElement(xml_filter_item, "column")
+            xml_filter_item_detail_column = ETWrite.SubElement(xml_filter_item, "column")
             xml_filter_item_detail_column.text = unicode(filteritem.text(0))
 
-            xml_filter_item_detail_mode = ET.SubElement(xml_filter_item, "mode")
+            xml_filter_item_detail_mode = ETWrite.SubElement(xml_filter_item, "mode")
             xml_filter_item_detail_mode.text = unicode(filteritem.text(1))
 
-            xml_filter_item_detail_filter = ET.SubElement(xml_filter_item, "filter")
+            xml_filter_item_detail_filter = ETWrite.SubElement(xml_filter_item, "filter")
             xml_filter_item_detail_filter.text = unicode(filteritem.text(2))
 
-            xml_filter_item_detail_strict = ET.SubElement(xml_filter_item, "strict")
+            xml_filter_item_detail_strict = ETWrite.SubElement(xml_filter_item, "strict")
             xml_filter_item_detail_strict.text = unicode(filteritem.text(3))
 
             filteritem = tabListWidget.filterTree.itemBelow(filteritem)
 
         # ADDING COLUMN REMOVAL ELEMENTS
         delete_column_name = "columndelete"
-        xml_deletecolumn = ET.SubElement(xml_root, delete_column_name)
+        xml_deletecolumn = ETWrite.SubElement(xml_root, delete_column_name)
         for index in range(tabListWidget.columnList.count()):
             delete_column_item = tabListWidget.columnList.item(index)
-            ET.SubElement(xml_deletecolumn, "column", {"name": unicode(delete_column_item.text())})
+            ETWrite.SubElement(xml_deletecolumn, "column", {"name": unicode(delete_column_item.text())})
 
-        ET.ElementTree(xml_root).write(xml_filename_from_savefile_dialog())
+        ETWrite.ElementTree(xml_root).write(xml_filename_from_savefile_dialog())
 
-    def loadConfFile(self):
+    def loadConfFile(self, filename, tabListWidget):
+        tree = ETRead.parse(filename)
+        filterTree = tabListWidget.filterTree
+        columnList = tabListWidget.columnList
+        root = tree.getroot()
+
+        # POPULATING FILTERS
+        for filter in (filters for filters in root if filters.tag == "filter"):
+            for item in filter.findall('filter_item'):
+                column = item.find("column").text
+                show = item.find("mode").text
+                if show.lower() == "show":
+                    show = True
+                else:
+                    show = False
+                filterstring = item.find("filter").text
+                # HOTFIX FOR EMPTY STRINGS
+                if filterstring is None:
+                    filterstring = ""
+                strict = item.find("strict").text
+                if strict.lower() == "true":
+                    strict = True
+                else:
+                    strict = False
+
+                filter_detail = FilterDetails(column, strict, show, filterstring)
+                tree_item = TabWidget.createtreeitem(filter_detail)
+                filterTree.addTopLevelItem(tree_item)
+                tabListWidget.control.addfilter(filter_detail)
+
+
+        # POPULATING COLUMNS TO DELETE
+        for column in (columns for columns in root if columns.tag == "columndelete"):
+            for column_item in column:
+                column = column_item.get('name')
+                # CREATING NEW LIST ITEM
+                new_item = QtGui.QListWidgetItem()
+                new_item.setText(column)
+                # ADDING IT TO THE LIST
+                columnList.addItem(new_item)
+                main_window.tabList.currentWidget().control.removecolumn(CellDetail(column))
+
+
         return
 
 ####
@@ -404,7 +456,7 @@ if __name__ == '__main__':
     app = QtGui.QApplication(sys.argv)
     desktop_width = QtGui.QDesktopWidget().geometry().width()
     desktop_height = QtGui.QDesktopWidget().geometry().height()
-    filename = filenamefromopenfiledialog()
+    filename = filename_from_openfile_dialog()
     if len(filename) > 0:
         control = ControlClass(filename)
         main_window = MainWindow(control)
