@@ -23,12 +23,12 @@
 __author__ = 'Giulio De Pasquale'
 
 import sys
+import xlrd
 from tempfile import TemporaryFile
 from collections import defaultdict
 from PyQt4 import QtGui, uic, QtCore
-
-import xlrd
 from xlwt import Workbook
+from xml.etree import cElementTree as ET
 
 
 main_window_ui = uic.loadUiType("./ui/qt-main.ui")[0]
@@ -49,6 +49,12 @@ def filenamefromsavefiledialog(parent=None):
                                              "/home",
                                              "Excel Files (*.xls *.xlsx)")
 
+def xml_filename_from_savefile_dialog(parent=None):
+    filedialog = QtGui.QFileDialog()
+    filedialog.setDefaultSuffix(".xml")
+    return filedialog.getSaveFileName(parent, "XLS Polisher - Save Configuration File",
+                                             "/home",
+                                             "XML Files (*.xml)")
 
 class FilterDetails():
     def __init__(self, colname, strict, show, string):
@@ -128,10 +134,12 @@ class MainWindow(QtGui.QMainWindow, main_window_ui):
         self.setGeometry(desktop_width / 3, desktop_height / 3, self.geometry().height(), self.geometry().width())
 
         # MENU BAR HANDLING
-        self.actionQuit.activated.connect(self.actionquit_activated)
-        self.actionAbout.activated.connect(self.actionabout_activated)
+        self.actionQuit.activated.connect(self.on_actionquit_activated)
+        self.actionAbout.activated.connect(self.on_actionabout_activated)
         self.actionFilter.activated.connect(self.addfilter)
-        self.actionOpenFile.activated.connect(self.actionopenfile_activated)
+        self.actionOpenFile.activated.connect(self.on_actionopenfile_activated)
+        self.actionOpen_Configuration.activated.connect(self.on_open_configuration_activated)
+        self.actionSave_Configuration.activated.connect(self.on_save_configuration_activated)
 
         # BUTTONS HANDLING
         self.writeButton.clicked.connect(self.writebutton_clicked)
@@ -143,7 +151,7 @@ class MainWindow(QtGui.QMainWindow, main_window_ui):
         self.tabList.addTab(TabWidget(controlitem), controlitem.filename.split("/")[-1])
         self.tabList.tabCloseRequested.connect(self.on_tab_close_requested)
 
-    def actionopenfile_activated(self):
+    def on_actionopenfile_activated(self):
         new_file = filenamefromopenfiledialog(self)
         self.tabList.addTab(TabWidget(ControlClass(new_file)), new_file.split("/")[-1])
         return
@@ -153,7 +161,7 @@ class MainWindow(QtGui.QMainWindow, main_window_ui):
         filter_dialog.updatecolcombobox()
         filter_dialog.show()
 
-    def actionquit_activated(self):
+    def on_actionquit_activated(self):
         self.close()
         app.quit()
 
@@ -164,18 +172,25 @@ class MainWindow(QtGui.QMainWindow, main_window_ui):
             app.quit()
 
     @staticmethod
-    def actionabout_activated():
+    def on_actionabout_activated():
         about_dialog.show()
 
     def writebutton_clicked(self):
         file_to_save = filenamefromsavefiledialog(self)
         if len(file_to_save) > 0:
-            main_window.tabList.currentWidget().control.writeFile(file_to_save)
+            self.tabList.currentWidget().control.writeFile(file_to_save)
 
     def removecolumnbutton_clicked(self):
         remove = RemoveColumnWindow(self)
         remove.updatecolcombobox()
         remove.show()
+
+    def on_save_configuration_activated(self):
+        self.tabList.currentWidget().control.createConfFile(self.tabList.currentWidget())
+        return
+
+    def on_open_configuration_activated(self):
+        return
 
 
 class FilterWindow(QtGui.QMainWindow, filter_window_ui):
@@ -262,7 +277,6 @@ class ControlClass():
                 availablecoltitleslist.append(cell.colname)
         return availablecoltitleslist
 
-
     def __colidxfromname__(self, name):
         for cell in self.cells_with_coltitles():
             if cell.colname == name:
@@ -314,7 +328,6 @@ class ControlClass():
                                    strings in self.parseandgetcellvalue(row, col)):
                         self.row_nums_to_delete.append(row)
 
-
     def writeFile(self, dstfilename):
         # actual row/col to write since there may be some rows/cols that have to be jumped
         self.populaterownumstodelete()
@@ -345,6 +358,43 @@ class ControlClass():
         if cell.ctype in (2, 3) and int(cell_value) == cell_value:
             cell_value = int(cell_value)
         return unicode(cell_value)
+
+    def createConfFile(self, tabListWidget):
+        root_name = "data"
+        xml_root = ET.Element(root_name)
+        filter_name = "filter"
+        # ADDING FILTER ELEMENTS
+        # GETS THE FIRST ITEM
+        xml_filter = ET.SubElement(xml_root, filter_name)
+        filteritem = tabListWidget.filterTree.topLevelItem(0)
+        while filteritem is not None:
+            xml_filter_item = ET.SubElement(xml_filter, "filter_item")
+
+            xml_filter_item_detail_column = ET.SubElement(xml_filter_item, "column")
+            xml_filter_item_detail_column.text = unicode(filteritem.text(0))
+
+            xml_filter_item_detail_mode = ET.SubElement(xml_filter_item, "mode")
+            xml_filter_item_detail_mode.text = unicode(filteritem.text(1))
+
+            xml_filter_item_detail_filter = ET.SubElement(xml_filter_item, "filter")
+            xml_filter_item_detail_filter.text = unicode(filteritem.text(2))
+
+            xml_filter_item_detail_strict = ET.SubElement(xml_filter_item, "strict")
+            xml_filter_item_detail_strict.text = unicode(filteritem.text(3))
+
+            filteritem = tabListWidget.filterTree.itemBelow(filteritem)
+
+        # ADDING COLUMN REMOVAL ELEMENTS
+        delete_column_name = "columndelete"
+        xml_deletecolumn = ET.SubElement(xml_root, delete_column_name)
+        for index in range(tabListWidget.columnList.count()):
+            delete_column_item = tabListWidget.columnList.item(index)
+            ET.SubElement(xml_deletecolumn, "column", {"name": unicode(delete_column_item.text())})
+
+        ET.ElementTree(xml_root).write(xml_filename_from_savefile_dialog())
+
+    def loadConfFile(self):
+        return
 
 ####
 # MAIN
