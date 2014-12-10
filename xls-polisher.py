@@ -24,6 +24,7 @@ __author__ = 'Giulio De Pasquale'
 
 import sys
 import xlrd
+import time
 from tempfile import TemporaryFile
 from collections import defaultdict
 from PyQt4 import QtGui, uic, QtCore
@@ -49,18 +50,20 @@ def filename_from_savefile_dialog(parent=None):
                                              "/home",
                                              "Excel Files (*.xls *.xlsx)")
 
+
 def xml_filename_from_savefile_dialog(parent=None):
     filedialog = QtGui.QFileDialog()
     filedialog.setDefaultSuffix(".xml")
     return filedialog.getSaveFileName(parent, "XLS Polisher - Save Configuration File",
-                                             "/home",
-                                             "XML Files (*.xml)")
+                                      "/home",
+                                      "XML Files (*.xml)")
+
 
 def xml_filename_from_openfile_dialog(parent=None):
     filedialog = QtGui.QFileDialog()
     return filedialog.getOpenFileName(parent, "XLS Polisher - Open Configuration File",
-                                             "/home",
-                                             "XML Files (*.xml)")
+                                      "/home",
+                                      "XML Files (*.xml)")
 
 
 class FilterDetails():
@@ -309,34 +312,35 @@ class ControlClass():
                 self.col_filter_delete_loose[colidx_to_filter].append(filterdetail.string)
         return
 
-    def populaterownumstodelete(self):
+    def must_delete(self, value, col):
         if self.col_filter_delete_strict:
-            for row in range(1, self.sheet.nrows):
-                for col in (cols for cols in range(self.sheet.ncols) if
-                            cols in self.col_filter_delete_strict and self.parseandgetcellvalue(row, cols) in
-                                    self.col_filter_delete_strict[cols]):
-                    self.row_nums_to_delete.append(row)
-
+            if value in self.col_filter_delete_strict[col]:
+                return True
         if self.col_filter_show_strict:
-            for row in range(1, self.sheet.nrows):
-                for col in (cols for cols in range(self.sheet.ncols) if
-                            cols in self.col_filter_show_strict and not self.parseandgetcellvalue(row, cols) in
-                                    self.col_filter_show_strict[cols]):
+            if value not in self.col_filter_show_strict[col]:
+                return True
+        # CHECKING LOOSE SEARCH
+        if self.col_filter_show_loose or self.col_filter_delete_loose:
+            for string in self.col_filter_delete_loose[col]:
+                if len(value.lower().split(string.lower())) > 1:
+                    return True
+            for string in self.col_filter_show_loose[col]:
+                if len(value.lower().split(string.lower())) == 1:
+                    return True
+        return False
+
+    def populaterownumstodelete(self):
+        cols_to_check = (set(self.col_filter_delete_strict)
+                             .union(self.col_filter_show_strict)
+                             .union(self.col_filter_show_loose)
+                             .union(self.col_filter_delete_loose)
+                             .intersection(range(self.sheet.ncols)))
+        for row in range(1, self.sheet.nrows):
+            for col in cols_to_check:
+                value = self.parseandgetcellvalue(row, col)
+                if self.must_delete(value, col):
                     self.row_nums_to_delete.append(row)
 
-        if self.col_filter_show_loose:
-            for row in range(1, self.sheet.nrows):
-                for col in (cols for cols in range(self.sheet.ncols) if cols in self.col_filter_show_loose):
-                    for string in (strings for strings in self.col_filter_show_loose[col] if
-                                   strings not in self.parseandgetcellvalue(row, col)):
-                        self.row_nums_to_delete.append(row)
-
-        if self.col_filter_delete_loose:
-            for row in range(1, self.sheet.nrows):
-                for col in (cols for cols in range(self.sheet.ncols) if cols in self.col_filter_delete_loose):
-                    for string in (strings for strings in self.col_filter_delete_loose[col] if
-                                   strings in self.parseandgetcellvalue(row, col)):
-                        self.row_nums_to_delete.append(row)
 
     def writeFile(self, dstfilename):
         # actual row/col to write since there may be some rows/cols that have to be jumped
@@ -444,7 +448,6 @@ class ControlClass():
                 # ADDING IT TO THE LIST
                 columnList.addItem(new_item)
                 main_window.tabList.currentWidget().control.removecolumn(CellDetail(column))
-
 
         return
 
