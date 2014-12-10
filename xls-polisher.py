@@ -91,21 +91,26 @@ class TabWidget(QtGui.QWidget, tab_widget_ui):
 
         self.filterTree.setColumnWidth(0, 234)  # COLUMN
         # HANDLING THE CONTEXT MENUS
-        self.filterTree.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
-        self.columnList.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
-        self.connect(self.filterTree, QtCore.SIGNAL('customContextMenuRequested(const QPoint&)'),
-                     self.on_context_menu_filtertree)
-        self.connect(self.columnList, QtCore.SIGNAL('customContextMenuRequested(const QPoint&)'),
-                     self.on_context_menu_columnlist)
+        self.popCol = QtGui.QMenu(self.columnList)
+        self.popFil = QtGui.QMenu(self.filterTree)
+        delete_filter_action = QtGui.QAction("Delete Selected Item", self.popFil)
+        delete_column_action = QtGui.QAction("Delete Selected Item", self.popCol)
+        self.filterTree.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
+        self.columnList.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
+        self.filterTree.addAction(delete_filter_action)
+        self.columnList.addAction(delete_column_action)
+        delete_filter_action.triggered.connect(self.on_context_menu_filtertree)
+        delete_column_action.triggered.connect(self.on_context_menu_columnlist)
 
-        self.popCol = QtGui.QMenu()
-        self.popFil = QtGui.QMenu()
 
-    def on_context_menu_columnlist(self, point):
-        self.popCol.exec_(self.mapToGlobal(point))
+    def on_context_menu_columnlist(self):
+        current_item = self.columnList.takeItem(self.columnList.currentRow())
+        self.control.remove_item_from_list_item(current_item)
 
-    def on_context_menu_filtertree(self, point):
-        self.popFil.exec_(self.mapToGlobal(point))
+    def on_context_menu_filtertree(self):
+        current_item = self.filterTree.takeTopLevelItem(
+            self.filterTree.indexOfTopLevelItem(self.filterTree.currentItem()))
+        self.control.remove_item_from_tree_item(current_item)
 
     def closefile(self):
         self.control.filename.close()
@@ -331,16 +336,15 @@ class ControlClass():
 
     def populaterownumstodelete(self):
         cols_to_check = (set(self.col_filter_delete_strict)
-                             .union(self.col_filter_show_strict)
-                             .union(self.col_filter_show_loose)
-                             .union(self.col_filter_delete_loose)
-                             .intersection(range(self.sheet.ncols)))
+                         .union(self.col_filter_show_strict)
+                         .union(self.col_filter_show_loose)
+                         .union(self.col_filter_delete_loose)
+                         .intersection(range(self.sheet.ncols)))
         for row in range(1, self.sheet.nrows):
             for col in cols_to_check:
                 value = self.parseandgetcellvalue(row, col)
                 if self.must_delete(value, col):
                     self.row_nums_to_delete.append(row)
-
 
     def writeFile(self, dstfilename):
         # actual row/col to write since there may be some rows/cols that have to be jumped
@@ -450,6 +454,40 @@ class ControlClass():
                 main_window.tabList.currentWidget().control.removecolumn(CellDetail(column))
 
         return
+
+    def remove_item_from_list_item(self, item):
+        if item:
+            column = item.text()
+            self.col_indexes_to_delete.remove(self.__colidxfromname__(column))
+
+    def remove_item_from_tree_item(self, item):
+        if item:
+            column = unicode(item.text(0))
+            mode = unicode(item.text(1))
+            filterstring = unicode(item.text(2))
+            strict = unicode(item.text(3))
+            filter_detail = self.filterdetail_from_strings(column, strict, mode, filterstring)
+            if filter_detail.show and filter_detail.strict:
+                self.col_filter_show_strict[self.__colidxfromname__(filter_detail.colName)].remove(filter_detail.string)
+            elif filter_detail.show and not filter_detail.strict:
+                self.col_filter_show_loose[self.__colidxfromname__(filter_detail.colName)].remove(filter_detail.string)
+            elif not filter_detail.show and filter_detail.strict:
+                self.col_filter_delete_strict[self.__colidxfromname__(filter_detail.colName)].remove(
+                    filter_detail.string)
+            elif not filter_detail.show and not filter_detail.strict:
+                self.col_filter_delete_loose[self.__colidxfromname__(filter_detail.colName)].remove(
+                    filter_detail.string)
+
+    def filterdetail_from_strings(self, colname, strict, mode, string):
+        if strict.lower() in ["true"]:
+            strict_bool = True
+        else:
+            strict_bool = False
+        if mode.lower() in ["show"]:
+            show_bool = True
+        else:
+            show_bool = True
+        return FilterDetails(colname, strict_bool, show_bool, string)
 
 ####
 # MAIN
