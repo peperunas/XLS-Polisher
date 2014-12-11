@@ -328,16 +328,19 @@ class ControlClass():
                 return True
 
         # CHECKING LOOSE FILTERS
+        # split() lenght will be 1 if the value isn't contained in our string
 
         if self.col_filter_show_loose[col]:
             for string in self.col_filter_show_loose[col]:
-                if len(value.lower().split(string.lower())) == 1:
-                    return True
+                if len(value.lower().split(string.lower())) > 1:
+                    return False
+            return True
 
         if self.col_filter_delete_loose[col]:
             for string in self.col_filter_delete_loose[col]:
                 if len(value.lower().split(string.lower())) > 1:
-                    return True
+                    return False
+            return True
         return False
 
     def populaterownumstodelete(self):
