@@ -73,7 +73,6 @@ class FilterDetails():
         self.show = show_bool
         self.string = unicode(string)
 
-
 class CellDetail():
     def __init__(self, colname, colidx=None, rowidx=None):
         self.colname = colname
@@ -105,12 +104,13 @@ class TabWidget(QtGui.QWidget, tab_widget_ui):
 
     def on_context_menu_columnlist(self):
         current_item = self.columnList.takeItem(self.columnList.currentRow())
-        self.control.remove_item_from_list_item(current_item)
+        if current_item:
+            self.control.remove_item_from_list_item(current_item)
 
     def on_context_menu_filtertree(self):
-        current_item = self.filterTree.takeTopLevelItem(
-            self.filterTree.indexOfTopLevelItem(self.filterTree.currentItem()))
-        self.control.remove_item_from_tree_item(current_item)
+        current_item = self.filterTree.takeTopLevelItem(self.filterTree.indexOfTopLevelItem(self.filterTree.currentItem()))
+        if current_item:
+            self.control.remove_item_from_tree_item(current_item)
 
     def closefile(self):
         self.control.filename.close()
@@ -168,7 +168,8 @@ class MainWindow(QtGui.QMainWindow, main_window_ui):
 
     def on_actionopenfile_activated(self):
         new_file = filename_from_openfile_dialog(self)
-        self.tabList.addTab(TabWidget(ControlClass(new_file)), new_file.split("/")[-1])
+        if len(new_file) > 0:
+            self.tabList.addTab(TabWidget(ControlClass(new_file)), new_file.split("/")[-1])
         return
 
     def addfilter(self):
@@ -194,6 +195,7 @@ class MainWindow(QtGui.QMainWindow, main_window_ui):
         file_to_save = filename_from_savefile_dialog(self)
         if len(file_to_save) > 0:
             self.tabList.currentWidget().control.writeFile(file_to_save)
+            self.tabList.currentWidget().control.renewWorkbook()
 
     def removecolumnbutton_clicked(self):
         remove = RemoveColumnWindow(self)
@@ -279,8 +281,12 @@ class ControlClass():
         self.col_filter_show_strict = defaultdict(list)
         self.col_filter_show_loose = defaultdict(list)
         self.col_filter_delete_loose = defaultdict(list)
-        self.polished_file = Workbook()
-        self.pf_sheet = self.polished_file.add_sheet(self.sheet.name)
+        self.workbook, self.wb_sheet = self.new_workbook_and_workbook_sheet(self.sheet.name)
+
+    def new_workbook_and_workbook_sheet(self, sheet_name):
+        workbook = Workbook()
+        workbook_sheet = workbook.add_sheet(sheet_name)
+        return workbook, workbook_sheet
 
     def cells_with_coltitles(self):
         coltitles = []
@@ -318,19 +324,26 @@ class ControlClass():
         return
 
     def must_delete(self, value, col):
-        if self.col_filter_delete_strict:
+        # CHECKING STRICT FILTERS
+
+        if self.col_filter_delete_strict[col]:
             if value in self.col_filter_delete_strict[col]:
                 return True
-        if self.col_filter_show_strict:
+
+        if self.col_filter_show_strict[col]:
             if value not in self.col_filter_show_strict[col]:
                 return True
-        # CHECKING LOOSE SEARCH
-        if self.col_filter_show_loose or self.col_filter_delete_loose:
-            for string in self.col_filter_delete_loose[col]:
-                if len(value.lower().split(string.lower())) > 1:
-                    return True
+
+        # CHECKING LOOSE FILTERS
+
+        if self.col_filter_show_loose[col]:
             for string in self.col_filter_show_loose[col]:
                 if len(value.lower().split(string.lower())) == 1:
+                    return True
+
+        if self.col_filter_delete_loose[col]:
+            for string in self.col_filter_delete_loose[col]:
+                if len(value.lower().split(string.lower())) > 1:
                     return True
         return False
 
@@ -345,10 +358,16 @@ class ControlClass():
                 value = self.parseandgetcellvalue(row, col)
                 if self.must_delete(value, col):
                     self.row_nums_to_delete.append(row)
+                    break
 
     def writeFile(self, dstfilename):
         # actual row/col to write since there may be some rows/cols that have to be jumped
+        print "DELETE LOOSE: " + str(self.col_filter_delete_loose)
+        print "DELETE STRICT: " + str(self.col_filter_delete_strict)
+        print "SHOW LOOSE: " + str(self.col_filter_show_loose)
+        print "SHOW STRICT: " + str(self.col_filter_show_strict)
         self.populaterownumstodelete()
+        print self.row_nums_to_delete
         col_write = 0
         col_wrote = False
         row_write = 0
@@ -356,7 +375,7 @@ class ControlClass():
             for row in (rows for rows in range(self.sheet.nrows) if rows not in self.row_nums_to_delete):
                 if not col_wrote:
                     col_wrote = True
-                self.pf_sheet.write(row_write, col_write, self.parseandgetcellvalue(row, col))
+                self.wb_sheet.write(row_write, col_write, self.parseandgetcellvalue(row, col))
                 row_write += 1
 
             if col_write >= (self.sheet.ncols - len(self.col_indexes_to_delete)):
@@ -366,8 +385,10 @@ class ControlClass():
                 col_wrote = False
             row_write = 0
 
-        self.polished_file.save(dstfilename)
-        self.polished_file.save(TemporaryFile())
+        # CLEARING LIST
+        del (self.row_nums_to_delete[:])
+        self.workbook.save(dstfilename)
+        self.workbook.save(TemporaryFile())
 
     def parseandgetcellvalue(self, row, col):
         cell = self.sheet.cell(row, col)
@@ -460,6 +481,21 @@ class ControlClass():
             column = item.text()
             self.col_indexes_to_delete.remove(self.__colidxfromname__(column))
 
+    def remove_filterdetail_from_list(self, filterdetail):
+        colidx = self.__colidxfromname__(filterdetail.colName)
+        if filterdetail.strict and filterdetail.show:
+            def_dict = self.col_filter_show_strict
+        elif filterdetail.strict and not filterdetail.show:
+            def_dict = self.col_filter_delete_strict
+        elif not filterdetail.strict and filterdetail.show:
+            def_dict = self.col_filter_show_loose
+        elif not filterdetail.strict and not filterdetail.show:
+            def_dict = self.col_filter_delete_loose
+        def_dict[colidx].remove(filterdetail.string)
+        if not def_dict[colidx]:
+            del(def_dict[colidx])
+        return
+
     def remove_item_from_tree_item(self, item):
         if item:
             column = unicode(item.text(0))
@@ -467,16 +503,7 @@ class ControlClass():
             filterstring = unicode(item.text(2))
             strict = unicode(item.text(3))
             filter_detail = self.filterdetail_from_strings(column, strict, mode, filterstring)
-            if filter_detail.show and filter_detail.strict:
-                self.col_filter_show_strict[self.__colidxfromname__(filter_detail.colName)].remove(filter_detail.string)
-            elif filter_detail.show and not filter_detail.strict:
-                self.col_filter_show_loose[self.__colidxfromname__(filter_detail.colName)].remove(filter_detail.string)
-            elif not filter_detail.show and filter_detail.strict:
-                self.col_filter_delete_strict[self.__colidxfromname__(filter_detail.colName)].remove(
-                    filter_detail.string)
-            elif not filter_detail.show and not filter_detail.strict:
-                self.col_filter_delete_loose[self.__colidxfromname__(filter_detail.colName)].remove(
-                    filter_detail.string)
+            self.remove_filterdetail_from_list(filter_detail)
 
     def filterdetail_from_strings(self, colname, strict, mode, string):
         if strict.lower() in ["true"]:
@@ -488,6 +515,9 @@ class ControlClass():
         else:
             show_bool = True
         return FilterDetails(colname, strict_bool, show_bool, string)
+
+    def renewWorkbook(self):
+        self.workbook, self.wb_sheet = self.new_workbook_and_workbook_sheet(self.sheet.name)
 
 ####
 # MAIN
