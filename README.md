@@ -7,3 +7,4 @@ DEPENDENCIES:
 - xlwt
 - xlrd
 - PyQt4
+- defusedxml

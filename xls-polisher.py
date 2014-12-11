@@ -23,13 +23,14 @@
 __author__ = 'Giulio De Pasquale'
 
 import sys
+import xlrd
+import time
 from tempfile import TemporaryFile
 from collections import defaultdict
 from PyQt4 import QtGui, uic, QtCore
-
-import xlrd
 from xlwt import Workbook
-
+from xml.etree import cElementTree as ETWrite
+from defusedxml import cElementTree as ETRead
 
 main_window_ui = uic.loadUiType("./ui/qt-main.ui")[0]
 dialog_window_ui = uic.loadUiType("./ui/qt-about.ui")[0]
@@ -38,25 +39,39 @@ remove_column_dialog_ui = uic.loadUiType("./ui/qt-remove-column.ui")[0]
 tab_widget_ui = uic.loadUiType("./ui/qt-tabwidget.ui")[0]
 
 
-def filenamefromopenfiledialog(parent=None):
+def filename_from_openfile_dialog(parent=None):
     return QtGui.QFileDialog.getOpenFileName(parent, "XLS Polisher - Open Excel File",
                                              "/home",
                                              "Excel Files (*.xls *.xlsx)")
 
 
-def filenamefromsavefiledialog(parent=None):
+def filename_from_savefile_dialog(parent=None):
     return QtGui.QFileDialog.getSaveFileName(parent, "XLS Polisher - Save Polished File",
                                              "/home",
                                              "Excel Files (*.xls *.xlsx)")
 
 
-class FilterDetails():
-    def __init__(self, colname, strict, show, string):
-        self.colName = colname
-        self.strict = strict
-        self.show = show
-        self.string = unicode(string)
+def xml_filename_from_savefile_dialog(parent=None):
+    filedialog = QtGui.QFileDialog()
+    filedialog.setDefaultSuffix(".xml")
+    return filedialog.getSaveFileName(parent, "XLS Polisher - Save Configuration File",
+                                      "/home",
+                                      "XML Files (*.xml)")
 
+
+def xml_filename_from_openfile_dialog(parent=None):
+    filedialog = QtGui.QFileDialog()
+    return filedialog.getOpenFileName(parent, "XLS Polisher - Open Configuration File",
+                                      "/home",
+                                      "XML Files (*.xml)")
+
+
+class FilterDetails():
+    def __init__(self, colname, strict_bool, show_bool, string):
+        self.colName = colname
+        self.strict = strict_bool
+        self.show = show_bool
+        self.string = unicode(string)
 
 class CellDetail():
     def __init__(self, colname, colidx=None, rowidx=None):
@@ -75,31 +90,30 @@ class TabWidget(QtGui.QWidget, tab_widget_ui):
 
         self.filterTree.setColumnWidth(0, 234)  # COLUMN
         # HANDLING THE CONTEXT MENUS
-        self.filterTree.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
-        self.columnList.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
-        self.connect(self.filterTree, QtCore.SIGNAL('customContextMenuRequested(const QPoint&)'),
-                     self.on_context_menu_filtertree)
-        self.connect(self.columnList, QtCore.SIGNAL('customContextMenuRequested(const QPoint&)'),
-                     self.on_context_menu_columnlist)
+        self.popCol = QtGui.QMenu(self.columnList)
+        self.popFil = QtGui.QMenu(self.filterTree)
+        delete_filter_action = QtGui.QAction("Delete Selected Item", self.popFil)
+        delete_column_action = QtGui.QAction("Delete Selected Item", self.popCol)
+        self.filterTree.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
+        self.columnList.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
+        self.filterTree.addAction(delete_filter_action)
+        self.columnList.addAction(delete_column_action)
+        delete_filter_action.triggered.connect(self.on_context_menu_filtertree)
+        delete_column_action.triggered.connect(self.on_context_menu_columnlist)
 
-        self.popCol = QtGui.QMenu()
-        self.popFil = QtGui.QMenu()
 
-    def on_context_menu_columnlist(self, point):
-        self.popCol.exec_(self.mapToGlobal(point))
+    def on_context_menu_columnlist(self):
+        current_item = self.columnList.takeItem(self.columnList.currentRow())
+        if current_item:
+            self.control.remove_item_from_list_item(current_item)
 
-    def on_context_menu_filtertree(self, point):
-        self.popFil.exec_(self.mapToGlobal(point))
+    def on_context_menu_filtertree(self):
+        current_item = self.filterTree.takeTopLevelItem(self.filterTree.indexOfTopLevelItem(self.filterTree.currentItem()))
+        if current_item:
+            self.control.remove_item_from_tree_item(current_item)
 
     def closefile(self):
         self.control.filename.close()
-
-    def removecolumnrow(self):
-        return
-
-    def removefilterrow(self):
-        print "pressed"
-        return
 
     @staticmethod
     def createtreeitem(filterdetail):
@@ -128,10 +142,12 @@ class MainWindow(QtGui.QMainWindow, main_window_ui):
         self.setGeometry(desktop_width / 3, desktop_height / 3, self.geometry().height(), self.geometry().width())
 
         # MENU BAR HANDLING
-        self.actionQuit.activated.connect(self.actionquit_activated)
-        self.actionAbout.activated.connect(self.actionabout_activated)
+        self.actionQuit.activated.connect(self.on_actionquit_activated)
+        self.actionAbout.activated.connect(self.on_actionabout_activated)
         self.actionFilter.activated.connect(self.addfilter)
-        self.actionOpenFile.activated.connect(self.actionopenfile_activated)
+        self.actionOpenFile.activated.connect(self.on_actionopenfile_activated)
+        self.actionOpen_Configuration.activated.connect(self.on_open_configuration_activated)
+        self.actionSave_Configuration.activated.connect(self.on_save_configuration_activated)
 
         # BUTTONS HANDLING
         self.writeButton.clicked.connect(self.writebutton_clicked)
@@ -143,9 +159,10 @@ class MainWindow(QtGui.QMainWindow, main_window_ui):
         self.tabList.addTab(TabWidget(controlitem), controlitem.filename.split("/")[-1])
         self.tabList.tabCloseRequested.connect(self.on_tab_close_requested)
 
-    def actionopenfile_activated(self):
-        new_file = filenamefromopenfiledialog(self)
-        self.tabList.addTab(TabWidget(ControlClass(new_file)), new_file.split("/")[-1])
+    def on_actionopenfile_activated(self):
+        new_file = filename_from_openfile_dialog(self)
+        if len(new_file) > 0:
+            self.tabList.addTab(TabWidget(ControlClass(new_file)), new_file.split("/")[-1])
         return
 
     def addfilter(self):
@@ -153,7 +170,7 @@ class MainWindow(QtGui.QMainWindow, main_window_ui):
         filter_dialog.updatecolcombobox()
         filter_dialog.show()
 
-    def actionquit_activated(self):
+    def on_actionquit_activated(self):
         self.close()
         app.quit()
 
@@ -164,18 +181,29 @@ class MainWindow(QtGui.QMainWindow, main_window_ui):
             app.quit()
 
     @staticmethod
-    def actionabout_activated():
+    def on_actionabout_activated():
         about_dialog.show()
 
     def writebutton_clicked(self):
-        file_to_save = filenamefromsavefiledialog(self)
+        file_to_save = filename_from_savefile_dialog(self)
         if len(file_to_save) > 0:
-            main_window.tabList.currentWidget().control.writeFile(file_to_save)
+            self.tabList.currentWidget().control.writeFile(file_to_save)
+            self.tabList.currentWidget().control.renewWorkbook()
 
     def removecolumnbutton_clicked(self):
         remove = RemoveColumnWindow(self)
         remove.updatecolcombobox()
         remove.show()
+
+    def on_save_configuration_activated(self):
+        self.tabList.currentWidget().control.createConfFile(self.tabList.currentWidget())
+        return
+
+    def on_open_configuration_activated(self):
+        filename = xml_filename_from_openfile_dialog()
+        if len(filename) > 0:
+            self.tabList.currentWidget().control.loadConfFile(filename, self.tabList.currentWidget())
+        return
 
 
 class FilterWindow(QtGui.QMainWindow, filter_window_ui):
@@ -246,8 +274,12 @@ class ControlClass():
         self.col_filter_show_strict = defaultdict(list)
         self.col_filter_show_loose = defaultdict(list)
         self.col_filter_delete_loose = defaultdict(list)
-        self.polished_file = Workbook()
-        self.pf_sheet = self.polished_file.add_sheet(self.sheet.name)
+        self.workbook, self.wb_sheet = self.new_workbook_and_workbook_sheet(self.sheet.name)
+
+    def new_workbook_and_workbook_sheet(self, sheet_name):
+        workbook = Workbook()
+        workbook_sheet = workbook.add_sheet(sheet_name)
+        return workbook, workbook_sheet
 
     def cells_with_coltitles(self):
         coltitles = []
@@ -261,7 +293,6 @@ class ControlClass():
             if cell.colidx not in self.col_indexes_to_delete:
                 availablecoltitleslist.append(cell.colname)
         return availablecoltitleslist
-
 
     def __colidxfromname__(self, name):
         for cell in self.cells_with_coltitles():
@@ -285,35 +316,45 @@ class ControlClass():
                 self.col_filter_delete_loose[colidx_to_filter].append(filterdetail.string)
         return
 
+    def must_delete(self, value, col):
+        # CHECKING STRICT FILTERS
+
+        if self.col_filter_delete_strict[col]:
+            if value in self.col_filter_delete_strict[col]:
+                return True
+
+        if self.col_filter_show_strict[col]:
+            if value not in self.col_filter_show_strict[col]:
+                return True
+
+        # CHECKING LOOSE FILTERS
+        # split() lenght will be 1 if the value isn't contained in our string
+
+        if self.col_filter_show_loose[col]:
+            for string in self.col_filter_show_loose[col]:
+                if len(value.lower().split(string.lower())) > 1:
+                    return False
+            return True
+
+        if self.col_filter_delete_loose[col]:
+            for string in self.col_filter_delete_loose[col]:
+                if len(value.lower().split(string.lower())) > 1:
+                    return False
+            return True
+        return False
+
     def populaterownumstodelete(self):
-        if self.col_filter_delete_strict:
-            for row in range(1, self.sheet.nrows):
-                for col in (cols for cols in range(self.sheet.ncols) if
-                            cols in self.col_filter_delete_strict and self.parseandgetcellvalue(row, cols) in
-                                    self.col_filter_delete_strict[cols]):
+        cols_to_check = (set(self.col_filter_delete_strict)
+                         .union(self.col_filter_show_strict)
+                         .union(self.col_filter_show_loose)
+                         .union(self.col_filter_delete_loose)
+                         .intersection(range(self.sheet.ncols)))
+        for row in range(1, self.sheet.nrows):
+            for col in cols_to_check:
+                value = self.parseandgetcellvalue(row, col)
+                if self.must_delete(value, col):
                     self.row_nums_to_delete.append(row)
-
-        if self.col_filter_show_strict:
-            for row in range(1, self.sheet.nrows):
-                for col in (cols for cols in range(self.sheet.ncols) if
-                            cols in self.col_filter_show_strict and not self.parseandgetcellvalue(row, cols) in
-                                    self.col_filter_show_strict[cols]):
-                    self.row_nums_to_delete.append(row)
-
-        if self.col_filter_show_loose:
-            for row in range(1, self.sheet.nrows):
-                for col in (cols for cols in range(self.sheet.ncols) if cols in self.col_filter_show_loose):
-                    for string in (strings for strings in self.col_filter_show_loose[col] if
-                                   strings not in self.parseandgetcellvalue(row, col)):
-                        self.row_nums_to_delete.append(row)
-
-        if self.col_filter_delete_loose:
-            for row in range(1, self.sheet.nrows):
-                for col in (cols for cols in range(self.sheet.ncols) if cols in self.col_filter_delete_loose):
-                    for string in (strings for strings in self.col_filter_delete_loose[col] if
-                                   strings in self.parseandgetcellvalue(row, col)):
-                        self.row_nums_to_delete.append(row)
-
+                    break
 
     def writeFile(self, dstfilename):
         # actual row/col to write since there may be some rows/cols that have to be jumped
@@ -325,7 +366,7 @@ class ControlClass():
             for row in (rows for rows in range(self.sheet.nrows) if rows not in self.row_nums_to_delete):
                 if not col_wrote:
                     col_wrote = True
-                self.pf_sheet.write(row_write, col_write, self.parseandgetcellvalue(row, col))
+                self.wb_sheet.write(row_write, col_write, self.parseandgetcellvalue(row, col))
                 row_write += 1
 
             if col_write >= (self.sheet.ncols - len(self.col_indexes_to_delete)):
@@ -335,8 +376,10 @@ class ControlClass():
                 col_wrote = False
             row_write = 0
 
-        self.polished_file.save(dstfilename)
-        self.polished_file.save(TemporaryFile())
+        # CLEARING LIST
+        del (self.row_nums_to_delete[:])
+        self.workbook.save(dstfilename)
+        self.workbook.save(TemporaryFile())
 
     def parseandgetcellvalue(self, row, col):
         cell = self.sheet.cell(row, col)
@@ -346,6 +389,127 @@ class ControlClass():
             cell_value = int(cell_value)
         return unicode(cell_value)
 
+    def createConfFile(self, tabListWidget):
+        root_name = "data"
+        xml_root = ETWrite.Element(root_name)
+        filter_name = "filter"
+        # ADDING FILTER ELEMENTS
+        # GETS THE FIRST ITEM
+        xml_filter = ETWrite.SubElement(xml_root, filter_name)
+        filteritem = tabListWidget.filterTree.topLevelItem(0)
+        while filteritem is not None:
+            xml_filter_item = ETWrite.SubElement(xml_filter, "filter_item")
+
+            xml_filter_item_detail_column = ETWrite.SubElement(xml_filter_item, "column")
+            xml_filter_item_detail_column.text = unicode(filteritem.text(0))
+
+            xml_filter_item_detail_mode = ETWrite.SubElement(xml_filter_item, "mode")
+            xml_filter_item_detail_mode.text = unicode(filteritem.text(1))
+
+            xml_filter_item_detail_filter = ETWrite.SubElement(xml_filter_item, "filter")
+            xml_filter_item_detail_filter.text = unicode(filteritem.text(2))
+
+            xml_filter_item_detail_strict = ETWrite.SubElement(xml_filter_item, "strict")
+            xml_filter_item_detail_strict.text = unicode(filteritem.text(3))
+
+            filteritem = tabListWidget.filterTree.itemBelow(filteritem)
+
+        # ADDING COLUMN REMOVAL ELEMENTS
+        delete_column_name = "columndelete"
+        xml_deletecolumn = ETWrite.SubElement(xml_root, delete_column_name)
+        for index in range(tabListWidget.columnList.count()):
+            delete_column_item = tabListWidget.columnList.item(index)
+            ETWrite.SubElement(xml_deletecolumn, "column", {"name": unicode(delete_column_item.text())})
+
+        ETWrite.ElementTree(xml_root).write(xml_filename_from_savefile_dialog())
+
+    def loadConfFile(self, filename, tabListWidget):
+        tree = ETRead.parse(filename)
+        filterTree = tabListWidget.filterTree
+        columnList = tabListWidget.columnList
+        root = tree.getroot()
+
+        # POPULATING FILTERS
+        for filter in (filters for filters in root if filters.tag == "filter"):
+            for item in filter.findall('filter_item'):
+                column = item.find("column").text
+                show = item.find("mode").text
+                if show.lower() == "show":
+                    show = True
+                else:
+                    show = False
+                filterstring = item.find("filter").text
+                # HOTFIX FOR EMPTY STRINGS
+                if filterstring is None:
+                    filterstring = ""
+                strict = item.find("strict").text
+                if strict.lower() == "true":
+                    strict = True
+                else:
+                    strict = False
+
+                filter_detail = FilterDetails(column, strict, show, filterstring)
+                tree_item = TabWidget.createtreeitem(filter_detail)
+                filterTree.addTopLevelItem(tree_item)
+                tabListWidget.control.addfilter(filter_detail)
+
+
+        # POPULATING COLUMNS TO DELETE
+        for column in (columns for columns in root if columns.tag == "columndelete"):
+            for column_item in column:
+                column = column_item.get('name')
+                # CREATING NEW LIST ITEM
+                new_item = QtGui.QListWidgetItem()
+                new_item.setText(column)
+                # ADDING IT TO THE LIST
+                columnList.addItem(new_item)
+                main_window.tabList.currentWidget().control.removecolumn(CellDetail(column))
+
+        return
+
+    def remove_item_from_list_item(self, item):
+        if item:
+            column = item.text()
+            self.col_indexes_to_delete.remove(self.__colidxfromname__(column))
+
+    def remove_filterdetail_from_list(self, filterdetail):
+        colidx = self.__colidxfromname__(filterdetail.colName)
+        if filterdetail.strict and filterdetail.show:
+            def_dict = self.col_filter_show_strict
+        elif filterdetail.strict and not filterdetail.show:
+            def_dict = self.col_filter_delete_strict
+        elif not filterdetail.strict and filterdetail.show:
+            def_dict = self.col_filter_show_loose
+        elif not filterdetail.strict and not filterdetail.show:
+            def_dict = self.col_filter_delete_loose
+        def_dict[colidx].remove(filterdetail.string)
+        if not def_dict[colidx]:
+            del(def_dict[colidx])
+        return
+
+    def remove_item_from_tree_item(self, item):
+        if item:
+            column = unicode(item.text(0))
+            mode = unicode(item.text(1))
+            filterstring = unicode(item.text(2))
+            strict = unicode(item.text(3))
+            filter_detail = self.filterdetail_from_strings(column, strict, mode, filterstring)
+            self.remove_filterdetail_from_list(filter_detail)
+
+    def filterdetail_from_strings(self, colname, strict, mode, string):
+        if strict.lower() in ["true"]:
+            strict_bool = True
+        else:
+            strict_bool = False
+        if mode.lower() in ["show"]:
+            show_bool = True
+        else:
+            show_bool = True
+        return FilterDetails(colname, strict_bool, show_bool, string)
+
+    def renewWorkbook(self):
+        self.workbook, self.wb_sheet = self.new_workbook_and_workbook_sheet(self.sheet.name)
+
 ####
 # MAIN
 ####
@@ -354,7 +518,7 @@ if __name__ == '__main__':
     app = QtGui.QApplication(sys.argv)
     desktop_width = QtGui.QDesktopWidget().geometry().width()
     desktop_height = QtGui.QDesktopWidget().geometry().height()
-    filename = filenamefromopenfiledialog()
+    filename = filename_from_openfile_dialog()
     if len(filename) > 0:
         control = ControlClass(filename)
         main_window = MainWindow(control)
