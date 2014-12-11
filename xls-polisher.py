@@ -143,7 +143,7 @@ class MainWindow(QtGui.QMainWindow, main_window_ui):
 
         # MENU BAR HANDLING
         self.actionQuit.activated.connect(self.on_actionquit_activated)
-        self.actionAbout.activated.connect(self.on_actionabout_activated)
+        self.actionCredits.activated.connect(self.on_actioncredits_activated)
         self.actionFilter.activated.connect(self.addfilter)
         self.actionOpenFile.activated.connect(self.on_actionopenfile_activated)
         self.actionOpen_Configuration.activated.connect(self.on_open_configuration_activated)
@@ -181,7 +181,7 @@ class MainWindow(QtGui.QMainWindow, main_window_ui):
             app.quit()
 
     @staticmethod
-    def on_actionabout_activated():
+    def on_actioncredits_activated():
         about_dialog.show()
 
     def writebutton_clicked(self):
