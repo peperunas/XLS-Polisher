@@ -115,13 +115,6 @@ class TabWidget(QtGui.QWidget, tab_widget_ui):
     def closefile(self):
         self.control.filename.close()
 
-    def removecolumnrow(self):
-        return
-
-    def removefilterrow(self):
-        print "pressed"
-        return
-
     @staticmethod
     def createtreeitem(filterdetail):
         if filterdetail.strict:
@@ -362,12 +355,7 @@ class ControlClass():
 
     def writeFile(self, dstfilename):
         # actual row/col to write since there may be some rows/cols that have to be jumped
-        print "DELETE LOOSE: " + str(self.col_filter_delete_loose)
-        print "DELETE STRICT: " + str(self.col_filter_delete_strict)
-        print "SHOW LOOSE: " + str(self.col_filter_show_loose)
-        print "SHOW STRICT: " + str(self.col_filter_show_strict)
         self.populaterownumstodelete()
-        print self.row_nums_to_delete
         col_write = 0
         col_wrote = False
         row_write = 0
