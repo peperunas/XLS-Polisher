@@ -343,8 +343,7 @@ class ControlClass():
         if self.col_filter_delete_loose[col]:
             for string in self.col_filter_delete_loose[col]:
                 if len(value.lower().split(string.lower())) > 1:
-                    return False
-            return True
+                    return True
         return False
 
     def populaterownumstodelete(self):
