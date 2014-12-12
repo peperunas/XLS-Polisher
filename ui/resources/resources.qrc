@@ -1,11 +1,11 @@
 <RCC>
-  <qresource prefix="icons">
-    <file>icons/black101.png</file>
-    <file>icons/circle22.png</file>
-    <file>icons/correct6.png</file>
-    <file>icons/cross18.png</file>
-    <file>icons/date.png</file>
-    <file>icons/diskette4.png</file>
-    <file>icons/recycle4.png</file>
-  </qresource>
+    <qresource prefix="icons">
+        <file>icons/black101.png</file>
+        <file>icons/circle22.png</file>
+        <file>icons/correct6.png</file>
+        <file>icons/cross18.png</file>
+        <file>icons/date.png</file>
+        <file>icons/diskette4.png</file>
+        <file>icons/recycle4.png</file>
+    </qresource>
 </RCC>

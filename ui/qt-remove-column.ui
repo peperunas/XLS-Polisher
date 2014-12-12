@@ -6,19 +6,19 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>313</width>
+    <width>290</width>
     <height>150</height>
    </rect>
   </property>
   <property name="minimumSize">
    <size>
-    <width>313</width>
+    <width>290</width>
     <height>150</height>
    </size>
   </property>
   <property name="maximumSize">
    <size>
-    <width>313</width>
+    <width>290</width>
     <height>150</height>
    </size>
   </property>
@@ -30,69 +30,61 @@
     <rect>
      <x>10</x>
      <y>10</y>
-     <width>291</width>
-     <height>151</height>
+     <width>271</width>
+     <height>131</height>
     </rect>
    </property>
    <property name="title">
     <string>Select the column to remove:</string>
    </property>
+   <property name="flat">
+    <bool>false</bool>
+   </property>
    <widget class="QComboBox" name="colComboBox">
     <property name="geometry">
      <rect>
-      <x>1</x>
+      <x>11</x>
       <y>29</y>
-      <width>291</width>
-      <height>61</height>
+      <width>251</width>
+      <height>51</height>
      </rect>
     </property>
    </widget>
    <widget class="QWidget" name="layoutWidget">
     <property name="geometry">
      <rect>
-      <x>-30</x>
-      <y>100</y>
-      <width>291</width>
-      <height>30</height>
+      <x>10</x>
+      <y>80</y>
+      <width>251</width>
+      <height>34</height>
      </rect>
     </property>
-    <layout class="QHBoxLayout" name="horizontalLayout"/>
-   </widget>
-   <widget class="QPushButton" name="confirmButton">
-    <property name="geometry">
-     <rect>
-      <x>150</x>
-      <y>100</y>
-      <width>141</width>
-      <height>28</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Confirm</string>
-    </property>
-    <property name="icon">
-     <iconset>
-      <normalon>:/icons/icons/correct6.png</normalon>
-     </iconset>
-    </property>
-   </widget>
-   <widget class="QPushButton" name="cancelButton">
-    <property name="geometry">
-     <rect>
-      <x>2</x>
-      <y>100</y>
-      <width>142</width>
-      <height>28</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Cancel</string>
-    </property>
-    <property name="icon">
-     <iconset>
-      <normalon>:/icons/icons/cross18.png</normalon>
-     </iconset>
-    </property>
+    <layout class="QHBoxLayout" name="horizontalLayout">
+     <item>
+      <widget class="QPushButton" name="cancelButton">
+       <property name="text">
+        <string>Cancel</string>
+       </property>
+       <property name="icon">
+        <iconset>
+         <normalon>:/icons/icons/cross18.png</normalon>
+        </iconset>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="confirmButton">
+       <property name="text">
+        <string>Confirm</string>
+       </property>
+       <property name="icon">
+        <iconset>
+         <normalon>:/icons/icons/correct6.png</normalon>
+        </iconset>
+       </property>
+      </widget>
+     </item>
+    </layout>
    </widget>
   </widget>
  </widget>

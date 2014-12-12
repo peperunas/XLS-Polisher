@@ -17,9 +17,9 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>0</y>
-     <width>511</width>
-     <height>401</height>
+     <y>10</y>
+     <width>491</width>
+     <height>391</height>
     </rect>
    </property>
    <property name="title">
@@ -28,10 +28,10 @@
    <widget class="QTreeWidget" name="filterTree">
     <property name="geometry">
      <rect>
-      <x>0</x>
-      <y>20</y>
-      <width>491</width>
-      <height>381</height>
+      <x>10</x>
+      <y>30</y>
+      <width>471</width>
+      <height>351</height>
      </rect>
     </property>
     <property name="tabKeyNavigation">
@@ -120,9 +120,9 @@
    <property name="geometry">
     <rect>
      <x>510</x>
-     <y>0</y>
+     <y>10</y>
      <width>321</width>
-     <height>411</height>
+     <height>391</height>
     </rect>
    </property>
    <property name="title">
@@ -131,10 +131,10 @@
    <widget class="QListWidget" name="columnList">
     <property name="geometry">
      <rect>
-      <x>0</x>
-      <y>20</y>
-      <width>321</width>
-      <height>381</height>
+      <x>10</x>
+      <y>30</y>
+      <width>301</width>
+      <height>351</height>
      </rect>
     </property>
     <property name="alternatingRowColors">
