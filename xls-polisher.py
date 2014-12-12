@@ -145,12 +145,12 @@ class MainWindow(QtGui.QMainWindow, main_window_ui):
         self.setGeometry(desktop_width / 3, desktop_height / 3, self.geometry().height(), self.geometry().width())
 
         # MENU BAR HANDLING
-        self.actionQuit.activated.connect(self.on_actionquit_activated)
-        self.actionCredits.activated.connect(self.on_actioncredits_activated)
-        self.actionFilter.activated.connect(self.addfilter)
-        self.actionOpenFile.activated.connect(self.on_actionopenfile_activated)
-        self.actionOpen_Configuration.activated.connect(self.on_open_configuration_activated)
-        self.actionSave_Configuration.activated.connect(self.on_save_configuration_activated)
+        self.actionQuit.triggered.connect(self.on_actionquit_triggered)
+        self.actionCredits.triggered.connect(self.on_actioncredits_triggered)
+        self.actionFilter.triggered.connect(self.addfilter)
+        self.actionOpenFile.triggered.connect(self.on_actionopenfile_triggered)
+        self.actionOpen_Configuration.triggered.connect(self.on_open_configuration_triggered)
+        self.actionSave_Configuration.triggered.connect(self.on_save_configuration_triggered)
 
         # BUTTONS HANDLING
         self.writeButton.clicked.connect(self.writebutton_clicked)
@@ -162,7 +162,7 @@ class MainWindow(QtGui.QMainWindow, main_window_ui):
         self.tabList.addTab(TabWidget(controlitem), controlitem.filename.split("/")[-1])
         self.tabList.tabCloseRequested.connect(self.on_tab_close_requested)
 
-    def on_actionopenfile_activated(self):
+    def on_actionopenfile_triggered(self):
         new_file = filename_from_openfile_dialog(self)
         if len(new_file) > 0:
             self.tabList.addTab(TabWidget(ControlClass(new_file)), new_file.split("/")[-1])
@@ -173,7 +173,7 @@ class MainWindow(QtGui.QMainWindow, main_window_ui):
         filter_dialog.updatecolcombobox()
         filter_dialog.show()
 
-    def on_actionquit_activated(self):
+    def on_actionquit_triggered(self):
         self.close()
         app.quit()
 
@@ -184,7 +184,7 @@ class MainWindow(QtGui.QMainWindow, main_window_ui):
             app.quit()
 
     @staticmethod
-    def on_actioncredits_activated():
+    def on_actioncredits_triggered():
         about_dialog.show()
 
     def writebutton_clicked(self):
@@ -198,11 +198,11 @@ class MainWindow(QtGui.QMainWindow, main_window_ui):
         remove.updatecolcombobox()
         remove.show()
 
-    def on_save_configuration_activated(self):
+    def on_save_configuration_triggered(self):
         self.tabList.currentWidget().control.create_conf_file(self.tabList.currentWidget())
         return
 
-    def on_open_configuration_activated(self):
+    def on_open_configuration_triggered(self):
         filename = xml_filename_from_openfile_dialog()
         if len(filename) > 0:
             self.tabList.currentWidget().control.load_conf_file(filename, self.tabList.currentWidget())
