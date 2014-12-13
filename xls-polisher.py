@@ -321,18 +321,20 @@ class ControlClass():
         return
 
     def must_delete(self, value, col):
-        # CHECKING STRICT FILTERS
+        # split() lenght will be 1 if the value isn't contained in our string
 
         if self.col_filter_delete_strict[col]:
             if value in self.col_filter_delete_strict[col]:
                 return True
 
+        if self.col_filter_delete_loose[col]:
+            for string in self.col_filter_delete_loose[col]:
+                if len(value.lower().split(string.lower())) > 1:
+                    return True
+
         if self.col_filter_show_strict[col]:
             if value not in self.col_filter_show_strict[col]:
                 return True
-
-        # CHECKING LOOSE FILTERS
-        # split() lenght will be 1 if the value isn't contained in our string
 
         if self.col_filter_show_loose[col]:
             for string in self.col_filter_show_loose[col]:
@@ -340,10 +342,6 @@ class ControlClass():
                     return False
             return True
 
-        if self.col_filter_delete_loose[col]:
-            for string in self.col_filter_delete_loose[col]:
-                if len(value.lower().split(string.lower())) > 1:
-                    return True
         return False
 
     def populaterownumstodelete(self):
