@@ -321,18 +321,20 @@ class ControlClass():
         return
 
     def must_delete(self, value, col):
-        # CHECKING STRICT FILTERS
+        # split() lenght will be 1 if the value isn't contained in our string
 
         if self.col_filter_delete_strict[col]:
             if value in self.col_filter_delete_strict[col]:
                 return True
 
+        if self.col_filter_delete_loose[col]:
+            for string in self.col_filter_delete_loose[col]:
+                if len(value.lower().split(string.lower())) > 1:
+                    return True
+
         if self.col_filter_show_strict[col]:
             if value not in self.col_filter_show_strict[col]:
                 return True
-
-        # CHECKING LOOSE FILTERS
-        # split() lenght will be 1 if the value isn't contained in our string
 
         if self.col_filter_show_loose[col]:
             for string in self.col_filter_show_loose[col]:
@@ -340,10 +342,6 @@ class ControlClass():
                     return False
             return True
 
-        if self.col_filter_delete_loose[col]:
-            for string in self.col_filter_delete_loose[col]:
-                if len(value.lower().split(string.lower())) > 1:
-                    return True
         return False
 
     def populaterownumstodelete(self):
@@ -360,24 +358,17 @@ class ControlClass():
                     break
 
     def write_workbook_to_file(self, dstfilename):
-        # actual row/col to write since there may be some rows/cols that have to be jumped
         self.populaterownumstodelete()
+        # actual column in the new file
         col_write = 0
-        col_wrote = False
+        # actual row in the new file
         row_write = 0
-        for col in (cols for cols in range(self.sheet.ncols) if cols not in self.col_indexes_to_delete):
-            for row in (rows for rows in range(self.sheet.nrows) if rows not in self.row_nums_to_delete):
-                if not col_wrote:
-                    col_wrote = True
+        for row in (rows for rows in range(self.sheet.nrows) if rows not in self.row_nums_to_delete):
+            for col in (cols for cols in range(self.sheet.ncols) if cols not in self.col_indexes_to_delete):
                 self.wb_sheet.write(row_write, col_write, self.parseandgetcellvalue(row, col))
-                row_write += 1
-
-            if col_write >= (self.sheet.ncols - len(self.col_indexes_to_delete)):
-                col_write = 0
-            if col_wrote:
                 col_write += 1
-                col_wrote = False
-            row_write = 0
+            row_write += 1
+            col_write = 0
 
         # CLEARING LIST
         del (self.row_nums_to_delete[:])
