@@ -363,12 +363,11 @@ class ControlClass():
         col_write = 0
         # actual row in the new file
         row_write = 0
-        for row in (rows for rows in range(self.sheet.nrows) if rows not in self.row_nums_to_delete):
-            for col in (cols for cols in range(self.sheet.ncols) if cols not in self.col_indexes_to_delete):
+        rows = [row for row in xrange(self.sheet.nrows) if row not in self.row_nums_to_delete]
+        cols = [col for col in xrange(self.sheet.ncols) if col not in self.col_indexes_to_delete]
+        for row_write, row in enumerate(rows):
+            for col_write, col in enumerate(cols):
                 self.wb_sheet.write(row_write, col_write, self.parseandgetcellvalue(row, col))
-                col_write += 1
-            row_write += 1
-            col_write = 0
 
         # CLEARING LIST
         del (self.row_nums_to_delete[:])
